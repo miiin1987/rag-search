@@ -50,3 +50,6 @@ scripts/fonts/*.woff2
 # 生成されたテストPDF（npm run generate-pdfs で再生成可能）
 test-pdfs/
 scripts/test-japanese.pdf
+
+.vercel
+.env*
