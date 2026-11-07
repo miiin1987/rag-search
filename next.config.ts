@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
@@ -12,6 +11,8 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // PDF解析ライブラリはサーバーサイドでのみ使用、Next.js のバンドルから除外
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
 };
 
 export default nextConfig;

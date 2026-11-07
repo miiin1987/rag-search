@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# fonts (大容量のため除外。scripts/fonts/README.md に取得方法を記載)
+scripts/fonts/*.ttf
+scripts/fonts/*.otf
+scripts/fonts/*.woff
+scripts/fonts/*.woff2
+
+# 生成されたテストPDF（npm run generate-pdfs で再生成可能）
+test-pdfs/
+scripts/test-japanese.pdf
