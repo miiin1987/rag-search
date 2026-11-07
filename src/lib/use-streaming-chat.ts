@@ -76,10 +76,10 @@ export function useStreamingChat() {
             })()
           : [];
 
-        // アシスタントメッセージを追加（空コンテンツで開始）
+        // アシスタントメッセージを追加（sources はストリーミング完了後に確定するため空で開始）
         updateMessages((prev) => [
           ...prev,
-          { id: assistantId, role: "assistant", content: "", sources },
+          { id: assistantId, role: "assistant", content: "", sources: [] },
         ]);
 
         // ストリームを読み込んでコンテンツを逐次更新
@@ -102,16 +102,21 @@ export function useStreamingChat() {
           );
         }
 
-        // デコーダーをフラッシュ
-        const remaining = decoder.decode();
-        if (remaining) {
-          accumulated += remaining;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: accumulated } : m
-            )
-          );
-        }
+        // デコーダーをフラッシュして完全なテキストを確定
+        accumulated += decoder.decode();
+
+        // 回答内容に基づいて出典を確定する。
+        // 「該当情報が見つかりません」を含む場合、AIが参考文書を使えなかったことを示すため
+        // 検索でヒットしたチャンクは出典として表示しない。
+        const finalSources = accumulated.includes("該当情報が見つかりません") ? [] : sources;
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: accumulated, sources: finalSources }
+              : m
+          )
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "エラーが発生しました");
         // 失敗したアシスタントメッセージを削除
