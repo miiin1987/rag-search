@@ -20,7 +20,8 @@ export interface RateLimitResult {
 }
 
 const WINDOW_SEC = 60;
-const MAX_REQUESTS = 10; // 10 リクエスト / 60 秒 / IP
+const MAX_REQUESTS = 10;    // 10 リクエスト / 60 秒 / IP
+const DAILY_MAX = 150;      // デモ全体での日次上限
 
 // ── Upstash 分散レート制限 ────────────────────────────────────
 
@@ -93,6 +94,43 @@ function pruneMemStore(): void {
   const now = Date.now();
   for (const [key, entry] of memStore) {
     if (now >= entry.resetAt) memStore.delete(key);
+  }
+}
+
+// ── 日次グローバル上限（Upstash Redis 使用時のみ有効） ───────────
+
+export interface DailyLimitResult {
+  allowed: boolean;
+  /** 本日の残りリクエスト数（Redisが使えない場合は null） */
+  remaining: number | null;
+}
+
+export async function checkDailyLimit(): Promise<DailyLimitResult> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return { allowed: true, remaining: null };
+
+  try {
+    const { Redis } = await import("@upstash/redis");
+    const redis = new Redis({ url, token });
+
+    const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const dateKey = jst.toISOString().slice(0, 10); // "YYYY-MM-DD" JST
+    const key = `rl:daily:${dateKey}`;
+
+    const count = await redis.incr(key);
+    if (count === 1) {
+      // 新しいキーなら 48 時間で自動削除
+      await redis.expire(key, 48 * 60 * 60);
+    }
+
+    return {
+      allowed: count <= DAILY_MAX,
+      remaining: Math.max(0, DAILY_MAX - count),
+    };
+  } catch (err) {
+    console.error("[rate-limit] 日次制限チェック失敗 → 許可扱い:", err instanceof Error ? err.message : String(err));
+    return { allowed: true, remaining: null };
   }
 }
 
